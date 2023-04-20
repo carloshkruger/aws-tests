@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sns-lambda-sqs
+
+  Sample SAM Template for sns-lambda-sqs
+
+Globals:
+  Function:
+    Timeout: 3
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Resources:
+  ConsumeSnsTopicFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: consume-sns-topic/
+      Handler: app.handler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Events:
+        SNSEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref MyTopic
+      DeadLetterQueue:
+        TargetArn: !GetAtt ConsumeSnsTopicDLQ.Arn
+        Type: SQS
+
+  ConsumeSnsTopicDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ConsumeSnsTopicDLQ
+
+  MyTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: MyTopic
+      Subscription:
+        - Endpoint: !GetAtt MyQueueForMyTopic.Arn
+          Protocol: sqs
+
+  MyQueueForMyTopic:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MyQueueForMyTopic
+
+  SnsToSqsPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Allow SNS publish to SQS"
+            Effect: Allow
+            Principal:
+              Service: "sns.amazonaws.com"
+            Resource: !GetAtt MyQueueForMyTopic.Arn
+            Action: SQS:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref MyTopic
+      Queues:
+        - Ref: MyQueueForMyTopic
+
+  MySecondQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MySecondQueue
+
+  MySecondQueueSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !GetAtt MySecondQueue.Arn
+      TopicArn: !Ref MyTopic
+      FilterPolicyScope: MessageBody
+      FilterPolicy:
+        price:
+          - numeric:
+              - ">="
+              - 50
+
+  SnsToSqsPolicyForMySecondQueue:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Allow SNS publish to SQS"
+            Effect: Allow
+            Principal:
+              Service: "sns.amazonaws.com"
+            Resource: !GetAtt MySecondQueue.Arn
+            Action: SQS:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref MyTopic
+      Queues:
+        - Ref: MySecondQueue
