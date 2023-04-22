@@ -10,14 +10,17 @@ export const putItemHandler = async (event) => {
   console.info("received:", event);
 
   const { artist, songTitle, albumTitle, awards } = JSON.parse(event.body);
+  const dateToRemove = new Date();
+  dateToRemove.setSeconds(dateToRemove.getSeconds() + 30);
 
   const params = {
     TableName: tableName,
     Item: {
-      Artist: artist,
-      SongTitle: songTitle,
-      AlbumTitle: albumTitle,
-      Awards: awards,
+      artist,
+      songTitle,
+      albumTitle,
+      awards,
+      dateToRemove: dateToRemove.getTime(),
     },
   };
 

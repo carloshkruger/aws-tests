@@ -14,10 +14,10 @@ describe("Test putItemHandler", function () {
   // This test invokes putItemHandler() and compare the result
   it("should add id to the table", async () => {
     const returnedItem = {
-      Artist: "Acme Band",
-      SongTitle: "Happy Day",
-      AlbumTitle: "Songs About Life",
-      Awards: "10",
+      artist: "Acme Band",
+      songTitle: "Happy Day",
+      albumTitle: "Songs About Life",
+      awards: "10",
     };
 
     // Return the specified value whenever the spied put function is called

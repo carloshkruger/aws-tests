@@ -35,23 +35,75 @@ Resources:
             Path: /
             Method: POST
 
+  ReadDynamoStreamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/read-dynamo-stream.handler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Events:
+        DynamoDBStreamEvent:
+          Type: DynamoDB
+          Properties:
+            BatchSize: 10
+            BisectBatchOnFunctionError: true
+            Enabled: True
+            MaximumBatchingWindowInSeconds: 30
+            MaximumRetryAttempts: 3
+            ParallelizationFactor: 1
+            StartingPosition: LATEST
+            Stream: !GetAtt MusicTable.StreamArn
+
+  ReadDynamoStreamForDeletedItemsByTTLFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/read-dynamo-stream-for-deleted-items-by-ttl.handler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Events:
+        DynamoDBStreamEvent:
+          Type: DynamoDB
+          Properties:
+            BatchSize: 10
+            BisectBatchOnFunctionError: true
+            Enabled: True
+            MaximumBatchingWindowInSeconds: 30
+            MaximumRetryAttempts: 3
+            ParallelizationFactor: 1
+            StartingPosition: LATEST
+            Stream: !GetAtt MusicTable.StreamArn
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"userIdentity":{"type":["Service"],"principalId":["dynamodb.amazonaws.com"]}}'
+
   MusicTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: "Music"
       AttributeDefinitions:
-        - AttributeName: "Artist"
+        - AttributeName: "artist"
           AttributeType: "S"
-        - AttributeName: "SongTitle"
+        - AttributeName: "songTitle"
           AttributeType: "S"
       KeySchema:
-        - AttributeName: "Artist"
+        - AttributeName: "artist"
           KeyType: "HASH"
-        - AttributeName: "SongTitle"
+        - AttributeName: "songTitle"
           KeyType: "RANGE"
       ProvisionedThroughput:
         ReadCapacityUnits: 2
         WriteCapacityUnits: 2
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: dateToRemove
+        Enabled: true
 
 Outputs:
   WebEndpoint:
