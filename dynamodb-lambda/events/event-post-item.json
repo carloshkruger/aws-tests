@@ -1,0 +1,4 @@
+{
+    "httpMethod": "POST",
+    "body": "{\"artist\": \"Acme Band\",\"songTitle\": \"Happy Day\",\"albumTitle\": \"Songs About Life\",\"awards\": \"10\"}"
+}
