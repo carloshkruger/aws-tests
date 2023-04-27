@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  rds-lambda
+
+  Sample SAM Template for rds-lambda
+
+Globals:
+  Function:
+    Timeout: 10
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Parameters:
+  DatabaseSecretName:
+    Type: String
+    Default: "rds-secret"
+    Description: Database secret name in Secrets Manager
+  DatabaseUsername:
+    Type: String
+    Default: "postgres"
+    Description: Database user name
+
+Resources:
+  CreateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: create-user/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          DATABASE_SECRET_NAME: !Ref DatabaseSecretName
+      Policies:
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref RdsSecret
+      Events:
+        CreateUserEvent:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: post
+
+  RdsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Ref DatabaseSecretName
+      Description: This is a Secrets Manager secret for a RDS instance
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DatabaseUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludeCharacters: "\"'@/\\"
+
+  RdsInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      DBName: my_database
+      Engine: postgres
+      EngineVersion: "15.2"
+      MasterUsername:
+        !Join [
+          "",
+          [
+            "{{resolve:secretsmanager:",
+            !Ref RdsSecret,
+            ":SecretString:username}}",
+          ],
+        ]
+      MasterUserPassword:
+        !Join [
+          "",
+          [
+            "{{resolve:secretsmanager:",
+            !Ref RdsSecret,
+            ":SecretString:password}}",
+          ],
+        ]
+
+  AttachSecretToRds:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref RdsSecret
+      TargetId: !Ref RdsInstance
+      TargetType: AWS::RDS::DBInstance
