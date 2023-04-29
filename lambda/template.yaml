@@ -29,3 +29,47 @@ Resources:
           Properties:
             Path: /hello
             Method: get
+
+  SourceTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: SourceTopic
+
+  ConsumeSourceTopicFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: consume-source-topic/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OnSuccessQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OnFailureQueue.QueueName
+      Events:
+        TopicEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref SourceTopic
+      EventInvokeConfig:
+        MaximumEventAgeInSeconds: 60
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnSuccess:
+            Type: SQS
+            Destination: !GetAtt OnSuccessQueue.Arn
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt OnFailureQueue.Arn
+
+  OnSuccessQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: OnSuccessQueue
+
+  OnFailureQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: OnFailureQueue
