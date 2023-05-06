@@ -35,6 +35,28 @@ Resources:
             Path: /
             Method: POST
 
+  GetAllArtistSongsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/get-all-artist-songs.handler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MusicTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref MusicTable
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: "/{artist}/songs"
+            Method: GET
+
   ReadDynamoStreamFunction:
     Type: AWS::Serverless::Function
     Properties:
